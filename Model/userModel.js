@@ -18,6 +18,10 @@ const userSchema=new Schema({
       type:String,
       required:true
    },
+   school_name:{
+      type:String,
+      required:true
+   },
    isAdmin:{
       type:String,
       default:'User'

@@ -1,16 +1,17 @@
 const {hashPassword,createToken,comparePassword,} = require("../Middleware/Auth");
-const example = require("../Model/userModel");
+const userModel = require("../Model/userModel");
 const { Validator } = require("node-input-validator");
 
-//create
+//regsiter
 const createUser = async (req, res) => {
   try {
     console.log("++++", req.body);
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone,school_name, password } = req.body;
     const validation = new Validator(req.body, {
       name: "required|string",
       email: "required|string",
       phone: "required|string",
+      school_name:"required|string",
       password: "required",
     });
     const match = await validation.check();
@@ -21,7 +22,7 @@ const createUser = async (req, res) => {
       });
     }
     //check user email
-    const exisitingUser = await example.findOne({ email });
+    const exisitingUser = await userModel.findOne({ email });
     if (exisitingUser) {
       return res.status(500).json({
         status: false,
@@ -30,10 +31,11 @@ const createUser = async (req, res) => {
     }
     //hash password
     const hashedPassword = await hashPassword(password);
-    const user = new example({
+    const user = new userModel({
       name,
       email,
       phone,
+      school_name,
       password: hashedPassword,
     });
     if (req.file) {
@@ -105,7 +107,7 @@ const loginUser = async (req, res) => {
       });
     }
     //check user
-    const user = await example.findOne({ email });
+    const user = await userModel.findOne({ email });
     if (!user) {
       return res.status(500).send({
         status: false,
@@ -139,6 +141,84 @@ const loginUser = async (req, res) => {
     });
   }
 };
+
+//forget password
+const forgetPassword=async(req,res)=>{
+  try{
+    const{email,school_name,newPassword}=req.body;
+    if(!email){
+       return res.status(500).send({message:"Email is required"})
+    }
+    if(!school_name){
+        return  res.status(500).send({message:"school name is required"})
+    }
+    if(!newPassword){
+        return  res.status(500).send({message:"New Password is required"})
+    }
+    //check email exist or not
+    const user=await userModel.findOne({email,school_name});
+    if(!user){
+        return res.status(404).send({
+            success:false,
+            message:"wrong Email or school name"})
+    }
+    const newHeasedPassword=await hashPassword(newPassword);
+    await userModel.findByIdAndUpdate(user._id,{
+        password:newHeasedPassword
+    })
+    return res.status(200).send({
+        success:true,
+        message:"Password Reset Successfully"})
+
+}catch(error){
+    console.log(error);
+    return res.status(500).json({
+        success: false,
+        message: "Errro in forget password",
+        error,
+    });
+}
+}
+
+//update password
+const updatePassword=async(req,res)=>{
+  try {
+    const user_id = req.body.user_id;
+    const {password }= req.body;
+
+    //check userid exist ir not
+    const data = await userModel.findOne({ _id: user_id });
+    if (data) {
+        const newPassword = await hashPassword(password);
+        const userData = await userModel.findByIdAndUpdate({ _id: user_id }, {
+            $set: {
+                
+                password: newPassword,
+            }
+        })
+        return res.status(201).json({
+          status:true,
+          message:"your password hasbeen update"
+
+        })
+        // res.status(201).send({ success: true, "msg": "your password hasbeen updated" });
+    } else {
+        // res.status(400).send({ succses: false, "msg": "user id Not found" })
+        return res.status(201).json({
+          status:true,
+          message:"user id Not found"
+        })
+    }
+
+} catch (error) {
+  return res.status(201).json({
+    status:true,
+    message:"Error"
+  })
+}
+}
+
+
 
 //user dashboard
 const userDashBoard = async (req, res) => {
@@ -176,5 +256,7 @@ const userDashBoard = async (req, res) => {
 module.exports = {
   createUser,
   loginUser,
-  userDashBoard
+  userDashBoard,
+  forgetPassword,
+  updatePassword
 };
